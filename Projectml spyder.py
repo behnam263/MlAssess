@@ -17,8 +17,6 @@ import statsmodels.api as sm
 from statsmodels.stats.anova import anova_lm
 from pandas.api.types import is_numeric_dtype
 
-
-
     
 hdf=pd.HDFStore('Train.h5',mode='r')
 hdf.items()
@@ -37,7 +35,6 @@ for c in df1.columns:
         q = df2[c].quantile(0.99)
         df2=df2[df1[c] < q]
         Columnlist.append(c)
-       # df2.apply(lambda s: df2.corrwith(s))
 
 corr = pd.DataFrame()
 for a in Columnlist:
@@ -63,13 +60,18 @@ quant_df = df2.quantile([low, high])
 for col in Columnlist:
         if is_numeric_dtype(df2[col]):
             df2 = df2[(df2[col] > quant_df.loc[low, col]) & (df2[col] < quant_df.loc[high, col])]
-       
+    
+ #it is our target
+Columnlist.remove('rank')
+
+#remove Highly correlated features
+Columnlist.remove('reply')
+   
 #Seperate Data for test,validation,train
 input_train,input_test_validation=sklearn.model_selection.train_test_split(df2,test_size=0.6,random_state=100,shuffle=True)
 input_validation,input_test=sklearn.model_selection.train_test_split(input_test_validation,test_size=0.5,random_state=100,shuffle=True)
 min_max_scaler = preprocessing.MinMaxScaler()
  
-
    
 #linear regression
 y=  (input_train['rank']-min(input_train['rank'])) /( max(input_train['rank'])-min(input_train['rank']))
@@ -77,23 +79,15 @@ yv= (input_validation['rank']-min(input_validation['rank'])) /( max(input_valida
 yt= (input_test['rank']-min(input_test['rank'])) /( max(input_test['rank'])-min(input_test['rank'])) 
 least_error=np.finfo(np.float64).max
 featurewithLeastSimple=""
-#it is our target
-Columnlist.remove('rank')
 
-#remove Highly correlated features
-Columnlist.remove('reply')
-
-
-df3=input_train[Columnlist]
-
-
-tempcolumnnames=df3.columns
 #Scale all data between 0 and 1
+df3=input_train[Columnlist]
+tempcolumnnames=df3.columns
 x_scaled=min_max_scaler.fit_transform(df3)
 df3 = pd.DataFrame(x_scaled)
-
 df3.columns=tempcolumnnames
 
+#Simple regression
 for col in Columnlist:
     x=input_train[col]
     Linearmodel = ols("y ~ x", x).fit()
@@ -117,7 +111,6 @@ multipleReg.fit(df3, y)
 print('Weights are : ')
 print (multipleReg.coef_)
 pridiction=multipleReg.predict(input_validation[Columnlist]);
-#print(multipleReg.score(input_validation[Columnlist],input_validation['rank'], sample_weight=None))
 mea= sum(abs(yv-pridiction))/len(yv)
 print("Mea for multipleReg:",mea)
 
@@ -135,12 +128,12 @@ print(clfRidge.score(input_validation[Columnlist],yv, sample_weight=None))
 #Lasso 
 reglasso = Lasso(alpha =0.001)
 reglasso.fit(df3, y) 
-
 print(reglasso)
 pridiction=reglasso.predict(input_validation[Columnlist]);
 mea= sum(abs(yv-pridiction))/len(yv)
 print("Mea for Lasso:",mea)
 
+#lasso feature seleaction
 featureSelection = SelectFromModel(reglasso)
 featureSelection.fit(df3, y) 
 selectedFeatures = featureSelection.transform(df3)
@@ -149,8 +142,8 @@ collistNiceindex=df3.columns[featureSelection.get_support()]
 for col in collistNiceindex:
             print(col)
             collistNice.append(col)
-
 dfLasso=df3[collistNiceindex]
+
 #Ridge regression after lasso
 clfRidgeAfterlasso = Ridge(alpha=0.01)
 clfRidgeAfterlasso.fit(dfLasso, y) 
@@ -232,7 +225,6 @@ def stepwise_selection(X, y,
 
 
 result = stepwise_selection(df3,y)
-
 print('resulting features from stepwise algorithms:')
 print(result)
 
@@ -252,3 +244,14 @@ kde = KernelDensity(kernel='gaussian', bandwidth=0.75).fit(df3)
 kdescore=kde.score(df3,yv)
 print("Kernel score:",kdescore)
 
+
+
+##Write prediction to file
+dfl=df1[Columnlist].fillna(0)
+pridiction=multipleReg.predict(dfl)
+Columnlist.append('Tweet Id')
+Columnlist.append('User Name')
+df1=df1[Columnlist]
+df1['result']=pridiction
+pt = pd.DataFrame(df1)
+pt.to_csv('./target.csv',encoding='utf-8')
