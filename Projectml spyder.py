@@ -3,7 +3,6 @@ import pandas as pd
 import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
 import sklearn
-from sklearn import datasets 
 import sklearn.model_selection
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import LinearRegression
@@ -12,13 +11,11 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.feature_selection import SelectFromModel
 from sklearn.neighbors import KernelDensity
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.linear_model import LogisticRegression
 from sklearn import preprocessing
 from statsmodels.formula.api import ols
 import statsmodels.api as sm
 from statsmodels.stats.anova import anova_lm
 from pandas.api.types import is_numeric_dtype
-from sklearn.metrics import mean_squared_error, r2_score
 
 
 
@@ -58,7 +55,15 @@ for c in Columnlist:
         plt.ylabel(c)
         plt.title('Relations')
         plt.show()
-        
+ 
+#remove outliers
+low = .03
+high = .91
+quant_df = df2.quantile([low, high])
+for col in Columnlist:
+        if is_numeric_dtype(df2[col]):
+            df2 = df2[(df2[col] > quant_df.loc[low, col]) & (df2[col] < quant_df.loc[high, col])]
+       
 #Seperate Data for test,validation,train
 input_train,input_test_validation=sklearn.model_selection.train_test_split(df2,test_size=0.6,random_state=100,shuffle=True)
 input_validation,input_test=sklearn.model_selection.train_test_split(input_test_validation,test_size=0.5,random_state=100,shuffle=True)
@@ -80,13 +85,7 @@ Columnlist.remove('reply')
 
 
 df3=input_train[Columnlist]
-#remove outliers
-#low = .05
-#high = .95
-#quant_df = df3.quantile([low, high])
-#for col in Columnlist:
-#        if is_numeric_dtype(df3[col]):
-#            df3 = df3[(df3[col] > quant_df.loc[low, col]) & (df3[col] < quant_df.loc[high, col])]
+
 
 tempcolumnnames=df3.columns
 #Scale all data between 0 and 1
