@@ -16,10 +16,10 @@ from statsmodels.formula.api import ols
 import statsmodels.api as sm
 from statsmodels.stats.anova import anova_lm
 from pandas.api.types import is_numeric_dtype
-
     
 hdf=pd.HDFStore('Train.h5',mode='r')
 hdf.items()
+test=pd.read_excel('StudentTest.xlsx', index_col=0, header=0)
 # get keys dataframe
 hdf.keys()
 df1=hdf.get('/df').fillna(0)
@@ -246,12 +246,21 @@ print("Kernel score:",kdescore)
 
 
 
+
 ##Write prediction to file
-dfl=df1[Columnlist].fillna(0)
-pridiction=multipleReg.predict(dfl)
-Columnlist.append('Tweet Id')
-Columnlist.append('User Name')
-df1=df1[Columnlist]
-df1['result']=pridiction
-pt = pd.DataFrame(df1)
-pt.to_csv('./target.csv',encoding='utf-8')
+test=test.fillna(0)
+test=pd.DataFrame(test)
+test.columns=[ 'Tweet Id','User Name','Favs','RTs','Followers','Following','Listed','likes','tweets','reply','URLs','Tweet content']
+ #add wordcounts of tweet
+test['Tweet content'] = test['Tweet content'].astype(str)
+test['Word Count'] = test['Tweet content'].str.split().str.len()
+test=test[Columnlist]
+ 
+#dar inja sotun result ra ezafe mikonim
+test['result'] = multipleReg.predict(test)
+#dar inja file csv ra tolid mikonim
+test.to_csv('test.csv',encoding='utf-8')
+ #dar inja file excel ra tolid mikonim
+writer=pd.ExcelWriter('test.xlsx')
+test.to_excel(writer,'sheet1')
+writer.save()
